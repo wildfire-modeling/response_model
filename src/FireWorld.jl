@@ -62,7 +62,7 @@ function cost_map(costs_array::Array{Int64,1}, costs_size::Array{Int64,1}, rng::
 end
 
 # fire grid size
-const GRID_SIZE = 3
+const GRID_SIZE = 5
 const total_size = GRID_SIZE * GRID_SIZE
 # indices conversion
 const cartesian = CartesianIndices((1:GRID_SIZE, 1:GRID_SIZE))
@@ -76,7 +76,7 @@ const BURN_THRESHOLD = 0.6
 
 # initial fuel level
 const DEFAULT_FUEL = 5
-init_fuels = ones(Int, total_size) * DEFAULT_FUEL
+# init_fuels = ones(Int, total_size) * DEFAULT_FUEL
 
 # initial weather condition
 const WIND = [1, 1, 5]
@@ -85,9 +85,9 @@ const WIND = [1, 1, 5]
 const RAND_INIT = 264
 rng = MersenneTwister(RAND_INIT);
 
-burns_size = make_burn_size(total_size, BURN_PERC)
-burn_prob_map = burn_map(BURN_THRESHOLD, burns_size, rng)
-init_burn = burn_prob_map .> BURN_THRESHOLD
+# burns_size = make_burn_size(total_size, BURN_PERC)
+# burn_prob_map = burn_map(BURN_THRESHOLD, burns_size, rng)
+# init_burn = burn_prob_map .> BURN_THRESHOLD
 
 # make initial cost map
 # high_cost_perc = 0.2 # according to the 2010 Census, 
@@ -102,6 +102,14 @@ const COSTS_PERC = [0.2, 0.3, 0.5]
 costs_size = make_cost_size(total_size, COSTS_PERC)
 COSTS = cost_map(COSTS_ARRAY, costs_size, rng)
 
+function make_initial_state(GRID_SIZE::Int64)
+    burns_size = make_burn_size(total_size, BURN_PERC)
+    burn_prob_map = burn_map(BURN_THRESHOLD, burns_size, rng)
+    init_burn = burn_prob_map .> BURN_THRESHOLD
+    init_fuels = ones(Int, total_size) * DEFAULT_FUEL
+    return FireState(init_burn, burn_prob_map, init_fuels)
+end
+
 # POMDP State
 struct FireState
     burning::BitArray{1} # an array maintaining what cells are burning
@@ -114,12 +122,12 @@ struct FireObs
     burning::BitArray{1} # an array what cells are seen to be burning
 end
 
-@show init_state = FireState(init_burn, burn_prob_map, init_fuels)
+# @show init_state = FireState(init_burn, burn_prob_map, init_fuels)
 
 # POMDP{State, Action, Observation}
 @with_kw struct FireWorld <: POMDP{FireState, Array{Int64, 1}, FireObs} 
     # initial state
-    state::FireState = init_state
+    state::FireState = make_initial_state(GRID_SIZE)
     # fire grid size
     map_size::Tuple{Int,Int} = (GRID_SIZE, GRID_SIZE)
     # cost map
