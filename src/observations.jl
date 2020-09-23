@@ -16,14 +16,13 @@ function POMDPs.observation(pomdp::FireWorld, a::Array{Int64,1}, sp::FireState)
     # only change the cells that were not acted upon
     # because if action was applied, fp and fn rates are 0 (eyes on fire)
     # otherwise, some delay happens and observation may not be the same
-#     all_cells = collect(1:total_size)
-#     no_action_cells = all_cells[minus(a, all_cells)]
+
     # update the burn_probs map for actions taken to be 1.0 (so it won't be sensitive to threshold we pick)
     burn_probs_for_obs = deepcopy(burn_probs_new)
     for a_i in a
         burn_probs_for_obs[a_i] = 1.0
     end
-    # now pick thresholds 
+
     thresholds = collect(12:19)/20
     individual_prob = 1/length(thresholds)
     burns = []

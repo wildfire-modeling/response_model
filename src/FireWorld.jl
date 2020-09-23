@@ -28,6 +28,11 @@ export
     FireState,
     FireObs
 
+
+# initial burn map
+# criteria: only a % burning - set maximum number
+const BURN_PERC = 0.1
+const BURN_THRESHOLD = 0.6
 function make_burn_size(total_size::Int64, burn_perc::Float64)
     burn_size = floor(Int, total_size * burn_perc)
     if burn_size in [0, 1]
@@ -45,6 +50,16 @@ function burn_map(burn_threshold::Float64, burns_size::Array{Int64,1}, rng::Abst
     return shuffle!(rng, burn_map)
 end
 
+# make initial cost map
+# high_cost_perc = 0.2 # according to the 2010 Census, 
+#                      # 95 percent of Californians live on just 5.3 percent of the land in the state
+#                      # Less than 17 percent of the San Francisco Bay Area is developed
+# mid_cost_perc = 0.3 # percentage of California forest coverage
+# low_cost_perc = 1 - high_cost_perc - mid_cost_perc # 0.5
+
+const COSTS_PERC = [0.2, 0.3, 0.5]
+const COSTS_ARRAY = [-10, -5, -1]
+# costs = rand(costs_array, total_size);
 
 function make_cost_size(total_size::Int64, costs_perc::Array{Float64,1})
     high_cost_size = floor(Int, total_size * costs_perc[1])
@@ -61,22 +76,15 @@ function cost_map(costs_array::Array{Int64,1}, costs_size::Array{Int64,1}, rng::
     return shuffle!(rng, costs)
 end
 
-# fire grid size
-const GRID_SIZE = 5
-const total_size = GRID_SIZE * GRID_SIZE
-# indices conversion
-const cartesian = CartesianIndices((1:GRID_SIZE, 1:GRID_SIZE))
-const linear = LinearIndices((1:GRID_SIZE, 1:GRID_SIZE))
+function make_cost_map(GRID_SIZE::Int64, COSTS_PERC::Array{Float64,1}, COSTS_ARRAY::Array{Int64,1}, rng::AbstractRNG)
+    costs_size = make_cost_size(GRID_SIZE * GRID_SIZE, COSTS_PERC)
+    COSTS = cost_map(COSTS_ARRAY, costs_size, rng)
+    return COSTS
+end
 
-
-# initial burn map
-# criteria: only a % burning - set maximum number
-const BURN_PERC = 0.1
-const BURN_THRESHOLD = 0.6
 
 # initial fuel level
 const DEFAULT_FUEL = 5
-# init_fuels = ones(Int, total_size) * DEFAULT_FUEL
 
 # initial weather condition
 const WIND = [1, 1, 5]
@@ -85,30 +93,15 @@ const WIND = [1, 1, 5]
 const RAND_INIT = 264
 rng = MersenneTwister(RAND_INIT);
 
-# burns_size = make_burn_size(total_size, BURN_PERC)
-# burn_prob_map = burn_map(BURN_THRESHOLD, burns_size, rng)
-# init_burn = burn_prob_map .> BURN_THRESHOLD
-
-# make initial cost map
-# high_cost_perc = 0.2 # according to the 2010 Census, 
-#                      # 95 percent of Californians live on just 5.3 percent of the land in the state
-#                      # Less than 17 percent of the San Francisco Bay Area is developed
-# mid_cost_perc = 0.3 # percentage of California forest coverage
-# low_cost_perc = 1 - high_cost_perc - mid_cost_perc # 0.5
-
-const COSTS_ARRAY = [-10, -5, -1]
-# costs = rand(costs_array, total_size);
-const COSTS_PERC = [0.2, 0.3, 0.5]
-costs_size = make_cost_size(total_size, COSTS_PERC)
-COSTS = cost_map(COSTS_ARRAY, costs_size, rng)
-
+# initial state
 function make_initial_state(GRID_SIZE::Int64)
-    burns_size = make_burn_size(total_size, BURN_PERC)
+    burns_size = make_burn_size(GRID_SIZE * GRID_SIZE, BURN_PERC)
     burn_prob_map = burn_map(BURN_THRESHOLD, burns_size, rng)
     init_burn = burn_prob_map .> BURN_THRESHOLD
-    init_fuels = ones(Int, total_size) * DEFAULT_FUEL
+    init_fuels = ones(Int, GRID_SIZE * GRID_SIZE) * DEFAULT_FUEL
     return FireState(init_burn, burn_prob_map, init_fuels)
 end
+
 
 # POMDP State
 struct FireState
@@ -125,13 +118,15 @@ end
 # @show init_state = FireState(init_burn, burn_prob_map, init_fuels)
 
 # POMDP{State, Action, Observation}
-@with_kw struct FireWorld <: POMDP{FireState, Array{Int64, 1}, FireObs} 
+@with_kw struct FireWorld{GRID_SIZE} <: POMDP{FireState, Array{Int64, 1}, FireObs} 
+    # size of grid
+    grid_size::Int64 = GRID_SIZE
     # initial state
-    state::FireState = make_initial_state(GRID_SIZE)
-    # fire grid size
-    map_size::Tuple{Int,Int} = (GRID_SIZE, GRID_SIZE)
+    state::FireState = make_initial_state(grid_size)
+    # fire total size, for visualization
+    map_size::Tuple{Int,Int} = (grid_size, grid_size)
     # cost map
-    costs::Array{Int64,1} = COSTS
+    costs::Array{Int64,1} = make_cost_map(grid_size, COSTS_PERC, COSTS_ARRAY, rng)
     # 1-sensitivity; probability of an observation of no burning when it actually is, e.g. burning but sensor does not detect
     bprob_fn::Float64 = 0.2
     # 1-specificity; probability of an observation of burning when it isn't, false positive; due to lag cells are likely to be burning (more likely if p_small is lower)
@@ -143,10 +138,6 @@ end
     # consists of strength, acceleration, and direction
     wind::Array{Int64,1} = WIND
 end
-
-
-# FireWorld() = FireWorld(init_state, (GRID_SIZE, GRID_SIZE), COSTS, 0.2, 0.1, f_succ, 0.95, wind_init(rng))
-# pomdp = FireWorld()
 
 # Discount factor
 POMDPs.discount(pomdp::FireWorld) = pomdp.discount;
