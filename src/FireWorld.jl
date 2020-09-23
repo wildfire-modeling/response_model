@@ -152,28 +152,10 @@ end
 POMDPs.discount(pomdp::FireWorld) = pomdp.discount;
 
 # Terminal condition
-function POMDPs.isterminal(pomdp::FireWorld, state::FireState)
-    burn = state.burning
-    r = reward(pomdp, state)
-    return sum(burn) == 0
-end 
+POMDPs.isterminal(pomdp::FireWorld, state::FireState) = sum(state.burning) == 0
 
 # Equal condition
-function POMDPs.isequal(s1::FireState, s2::FireState)
-    burning1 = s1.burning
-    burn_probs1 = s1.burn_probs
-    fuels1 = s1.fuels
-    
-    burning2 = s2.burning
-    burn_probs2 = s2.burn_probs
-    fuels2 = s2.fuels
-    
-    if burning1 == burning2 && fuels1 == fuels2 && burn_probs1 == burn_probs2 #&& fire_nature1 == fire_nature2
-        return true
-    else
-        return false
-    end
-end
+POMDPs.isequal(s1::FireState, s2::FireState) = s1.burning == s2.burning && s1.fuels == s2.fuels && s1.burn_probs == s2.burn_probs
 
 
 include("updater.jl")

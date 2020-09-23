@@ -38,7 +38,7 @@ function POMDPs.transition(pomdp::FireWorld, state::FireState, action::Array{Int
         # update fuel levels of cells that were burning yet no action was applied to
         sp_fuels_new = deepcopy(sp_fuels)
         for cell in no_action_cells
-            if sp_burn[cell] == true
+            if sp_burn[cell]
     #             sp_fuels_new[cell] = max(sp_fuels[cell]-1,0)
                 new_fuel = sp_fuels[cell]-1
                 if new_fuel < 1
@@ -86,7 +86,7 @@ function transition_of_states(pomdp::FireWorld, state::FireState, action::Array{
     # check if any cell is burning now
     if num_act_n_burning > 0 
         # 1.(a) decrement fuels in those cells
-        fuels_new = decrement_fuel(fuels, act_on_burning_cells)
+        fuels_new = [i in act_on_burning_cells ? max(0, fuels[i]-1) : fuels[i] for i in 1:length(fuels) ]
         # 1.(b) account for varying fire fighting outcomes
         # some cells may be put out successfully and some may not be
         # for i in space([false, true], num_act_n_burning) # tuple is faster
@@ -104,14 +104,6 @@ function transition_of_states(pomdp::FireWorld, state::FireState, action::Array{
     return SparseCat(neighbors, probabilities)
 end
 
-# update fuel levels based on whether the cell was burning or not
-function decrement_fuel(fuels::Array{Int64,1}, burn_indices::Array{Int64,1})
-    new_fuels = deepcopy(fuels)
-    for i in burn_indices
-        new_fuels[i] = max(0, fuels[i]-1)
-    end
-    return new_fuels
-end 
 
 # update burning or not for cells that were burning
 function update_fullburn(burning::BitArray{1}, burn_perm::Array{Bool,1}, burn_indices::Array{Int64,1})
