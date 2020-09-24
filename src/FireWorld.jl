@@ -29,6 +29,13 @@ export
     FireObs
 
 
+# make initial state
+const RAND_INIT = 264
+rng = MersenneTwister(RAND_INIT);
+
+# initial fuel level
+const DEFAULT_FUEL = 5
+
 # initial burn map
 # criteria: only a % burning - set maximum number
 const BURN_PERC = 0.1
@@ -49,6 +56,17 @@ function burn_map(burn_threshold::Float64, burns_size::Array{Int64,1}, rng::Abst
     burn_map = vcat(burn_prob_array, not_burn_prob_array)
     return shuffle!(rng, burn_map)
 end
+
+# initial state
+function make_initial_state(GRID_SIZE::Int64, rng::AbstractRNG)
+    burns_size = make_burn_size(GRID_SIZE * GRID_SIZE, BURN_PERC)
+    burn_prob_map = burn_map(BURN_THRESHOLD, burns_size, rng)
+    init_burn = burn_prob_map .> BURN_THRESHOLD
+    init_fuels = ones(Int, GRID_SIZE * GRID_SIZE) * DEFAULT_FUEL
+    return FireState(init_burn, burn_prob_map, init_fuels)
+end
+
+# @show init_state = FireState(init_burn, burn_prob_map, init_fuels)
 
 # make initial cost map
 # high_cost_perc = 0.2 # according to the 2010 Census, 
@@ -82,25 +100,8 @@ function make_cost_map(GRID_SIZE::Int64, COSTS_PERC::Array{Float64,1}, COSTS_ARR
     return COSTS
 end
 
-
-# initial fuel level
-const DEFAULT_FUEL = 5
-
 # initial weather condition
 const WIND = [1, 1, 5]
-
-# make initial state
-const RAND_INIT = 264
-rng = MersenneTwister(RAND_INIT);
-
-# initial state
-function make_initial_state(GRID_SIZE::Int64)
-    burns_size = make_burn_size(GRID_SIZE * GRID_SIZE, BURN_PERC)
-    burn_prob_map = burn_map(BURN_THRESHOLD, burns_size, rng)
-    init_burn = burn_prob_map .> BURN_THRESHOLD
-    init_fuels = ones(Int, GRID_SIZE * GRID_SIZE) * DEFAULT_FUEL
-    return FireState(init_burn, burn_prob_map, init_fuels)
-end
 
 
 # POMDP State
@@ -115,15 +116,14 @@ struct FireObs
     burning::BitArray{1} # an array what cells are seen to be burning
 end
 
-# @show init_state = FireState(init_burn, burn_prob_map, init_fuels)
 
 # POMDP{State, Action, Observation}
-@with_kw struct FireWorld{GRID_SIZE} <: POMDP{FireState, Array{Int64, 1}, FireObs} 
+@with_kw struct FireWorld <: POMDP{FireState, Array{Int64, 1}, FireObs} 
     # size of grid
-    grid_size::Int64 = GRID_SIZE
+    grid_size::Int64 = 4
     # initial state
-    state::FireState = make_initial_state(grid_size)
-    # fire total size, for visualization
+    state::FireState = make_initial_state(grid_size, rng)
+    # fire total size, for extension of non-square shape
     map_size::Tuple{Int,Int} = (grid_size, grid_size)
     # cost map
     costs::Array{Int64,1} = make_cost_map(grid_size, COSTS_PERC, COSTS_ARRAY, rng)
