@@ -31,17 +31,9 @@ using Combinatorics
 using FirePOMDP
 
 GRID_SIZE = 12
-COSTS = cost_map(GRID_SIZE)
 MAX_ACT = 1
 
-pomdp = FirePOMDP(state=FireState(GRID_SIZE), 
-                        map_size = (GRID_SIZE, GRID_SIZE),
-                        costs = COSTS,
-                        bprob_fn = 0.2,
-                        bprob_fp = 0.1,
-                        tprob = 0.8,
-                        discount=0.95.
-                        wind = [1, 1, 5]) 
+pomdp = FireWorld(grid_size = GRID_SIZE) 
 
 a_default = sortperm(pomdp.costs)[1:MAX_ACT]
 solver = POMCPOWSolver(rng=MersenneTwister(264), default_action = a_default, tree_queries = 1000, max_time = 60);
@@ -64,8 +56,9 @@ end
 
 - constructor: `FireWorld(kwargs...)` 
 - keyword arguments: 
+  - `grid_size` the size of the fire grid,  default 4
   - `state::FireState` , the initial state of the fire world
-  - `map_size` the size of the fire grid,  default (3,3)
+  - `map_size` the 2D size of the fire grid and can be used when non-square is used,  default (grid_size, grid_size)
   - `costs` the negative utility of each cell being on fire
   - `bprob_fn::Float64`, probability of an observation of no burning when it actually is, e.g. burning but sensor does not detect, default 0.2
   - `bprob_fp::Float64`, probability of an observation of burning when it isn't, false positive; due to lag cells are likely to be burning, default 0.1
